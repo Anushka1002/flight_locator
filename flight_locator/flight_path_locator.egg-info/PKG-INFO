@@ -1,0 +1,41 @@
+Metadata-Version: 1.0
+Name: flight-path-locator
+Version: 0.1
+Summary: library to find sun's position for route of a flight using arrival and departure coordinates.
+Home-page: https://github.com/Anushka1002/Projects
+Author: Anushka
+Author-email: verma.anushka10@gmail.com
+License: MIT
+Description: # Flight Locator
+        
+        
+        ### Prerequisite:
+        
+            * Python 3.x
+            * Django 3.x
+        
+        
+        ### System Setup:
+        
+        2. Environment setup:
+        
+            * Clone project:
+                - ```
+                    git clone <repo name>
+                  ```
+            * reaching setup.py
+                - ```
+                    cd MapFlightPath/flight_locator/
+                  ```
+            * Install by using command:
+                * for local system follow below command
+                ```
+                  python setup.py build
+                  python setup.py install
+                ```
+        4. Run servers:
+            ```
+             $ python manage.py runserver
+            ```
+        
+Platform: UNKNOWN

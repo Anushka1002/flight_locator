@@ -1,0 +1,8 @@
+Django>=3.0.7
+asgiref==3.2.7
+astral==2.2
+djangorestframework==3.11.0
+geographiclib==1.50
+geopy==1.22.0
+pytz==2020.1
+sqlparse==0.3.1
