@@ -6,76 +6,21 @@ import time
 from datetime import datetime, timedelta
 
 import pytz
-from astral import LocationInfo
-from astral.sun import sun
+from flight_map.suncalc_v2 import getPosition
 from geographiclib.geodesic import Geodesic
 from geopy.distance import lonlat, great_circle
-from rest_framework import status
-from rest_framework.response import Response
-
-from .suncalc_v2 import getTimes
-
-
-def calculate_night_hours(start_datetime, end_datetime, travel_info, total_duration):
-    """
-    * returns 'night hours'
-         * given the flight starts in day/night, flight ends in day/night, sunrise object during flight
-         * sunset object during flight if any
-         * @param travel_info - final coordin   ates of sunrise and sunset
-         * @param flightStart
-         * @param flightEnd
-         * @param sunriseInfo
-         * @param sunsetInfo
-         * @return string
-    """
-    day_hours, night_hours = 0, 0
-    start = travel_info["start"]
-    end = travel_info["end"]
-    start_datetime = datetime.strptime(start_datetime, "%Y%m%dT%H:%M:%SZ").astimezone(pytz.timezone("UTC"))
-    end_datetime = datetime.strptime(end_datetime, "%Y%m%dT%H:%M:%SZ").astimezone(pytz.timezone("UTC"))
-    same_day = True if (end_datetime - start_datetime).days == 0 else False
-
-    # day -day on same day flight
-    if start == 'day' and end == 'day' and same_day:
-        if travel_info["point_sunset_info"] and travel_info["point_sunrise_info"]:
-            night_hours = (
-                    travel_info["point_sunrise_info"]["datetime_of_sunrise"
-                    ] - travel_info["point_sunset_info"]["datetime_of_sunset"]).seconds
-        else:
-            night_hours = 0
-    # day - day but different days flight
-    elif start == "day" and end == "day" and not same_day:
-        if travel_info["point_sunset_info"] and travel_info["point_sunrise_info"]:
-            night_hours = (travel_info["point_sunrise_info"]["datetime_of_sunrise"
-                           ] - travel_info["point_sunset_info"]["datetime_of_sunset"]).seconds
-    # night - night flight
-    elif start == "night" and end == "night":
-        if travel_info["point_sunset_info"] and travel_info["point_sunrise_info"]:
-            day_hours = (
-                    travel_info["point_sunset_info"]["datetime_of_sunset"
-                    ] - travel_info["point_sunrise_info"]["datetime_of_sunrise"]).seconds
-            night_hours = (total_duration - day_hours)
-        else:
-            night_hours = (end_datetime - start_datetime).seconds
-
-    # day - night flight
-    elif start == "day" and end == "night":
-        night_hours = (end_datetime - travel_info["point_sunset_info"]["datetime_of_sunset"]).seconds
-    # Night - day flight
-    elif start == "night" and end == "day":
-        day_hours = end_datetime - travel_info["point_sunrise_info"]["datetime_of_sunrise"]
-        night_hours = (total_duration - day_hours.seconds)
-
-    return night_hours
 
 
 def get_bearing(start_point, end_point):
     """
-    method to calculate bearing between two coordinates
-    : params start_point
-    : params end_point
-    returns bearing
-    """
+    * Method to calculate bearing between two coordinates.
+
+    ***
+        :param: start_point: start coordinate
+        :param: end_point: end coordinate
+
+    * return float: bearing betweem two coordinates"""
+
     # φ1 = this.degreesToRadians(lat1)
     lat1 = math.radians(start_point[0])
 
@@ -98,137 +43,235 @@ def get_bearing(start_point, end_point):
     return bearing
 
 
-def get_point_sun_data(start_point, end_point, speed, start_datetime):
+def get_positional_data(A, B, speed, start_datetime_obj):
     """
-    method to get sun's positions on a coordinate
-    : params start_point
-    : params end_point
-    : params speed
-    : params start_datetime
-    return sun's positional information
-    """
-    is_sunset = False
-    is_sunrise = False
-    # Define the ellipsoid
-    geod = Geodesic.WGS84
-    night_hours = 0.0
-    # azimuth between start and end points
-    inv = geod.Inverse(start_point[0], start_point[1], end_point[0], end_point[1])
+    * Method to get sun positional data
 
-    bearing = get_bearing(start_point, end_point)
+    ***
+        :params A: start coordinate
+        :params B: end coordinate
+        :params speed: speed of flight
+        :params start_datetime_obj: start_datetime_obj
+    * return:
+    ***
+        C : next coordinate
+        sun_position : sun's positio on next coordinate
+        time_at_c : time at C
+    """
+    geod = Geodesic.WGS84
+    # azimuth between start and end points
+    inv = geod.Inverse(A[0], A[1], B[0], B[1])
+
+    bearing = get_bearing(A, B)
 
     s_in_km = 10
-    s_in_meter = s_in_km * 1000
+    s_in_meter = 10 * 1000
 
     # geocodes of 10km distant point
-    dir = geod.Direct(start_point[0], start_point[1], bearing, s_in_meter)
+    dir = geod.Direct(A[0], A[1], bearing, s_in_meter)
     C = (dir['lat2'], dir['lon2'])
 
-    # time to reach point C from A
-    speed_in_kmph = float(speed) * 1.852
-
-    c_reaching_time = s_in_km / speed_in_kmph
+    c_reaching_time = s_in_km / speed
 
     # Time when flight reaches C
-    time_at_c = start_datetime.astimezone(pytz.timezone("UTC")) + timedelta(hours=c_reaching_time)
-    try:
-        c_sun_data = getTimes(time_at_c, start_point[0], start_point[1])
-        tz_sunrise = datetime.strptime(c_sun_data["sunrise"], "%Y-%m-%d %H:%M:%S").astimezone(pytz.timezone("UTC"))
-        tz_sunrise_end = datetime.strptime(c_sun_data["sunriseEnd"], "%Y-%m-%d %H:%M:%S"
-                                           ).astimezone(pytz.timezone("UTC"))
-        tz_sunset = datetime.strptime(c_sun_data["sunsetStart"], "%Y-%m-%d %H:%M:%S").astimezone(pytz.timezone("UTC"))
-        tz_sunset_end = datetime.strptime(c_sun_data["sunset"], "%Y-%m-%d %H:%M:%S").astimezone(pytz.timezone("UTC"))
-        if tz_sunrise <= time_at_c <= tz_sunrise_end:
-            is_sunrise = True
-        if tz_sunset <= time_at_c <= tz_sunset_end:
-            is_sunset = True
-    except (ValueError, TypeError):
-        pass
+    time_at_c = start_datetime_obj.astimezone(pytz.timezone("UTC")) + timedelta(hours=c_reaching_time)
 
-    return C, time_at_c, is_sunset, is_sunrise
+    # sun's position at C
+    sun_position = getPosition(time_at_c, A[0], A[1])
+
+    return sun_position, time_at_c, C
 
 
-def get_flight_route_data(start_lat, start_long, start_datetime, end_lat, end_long, end_datetime, speed):
+def get_roundoff_time(total_seconds):
     """
-    method to find sun's position during flight
-    :params start_lat : source's latitude
-    :params start_long : source's longitude
-    :params start_datetime : flight's departure time
-    :params end_lat : destination's latitude
-    :params end_long : destination's latitude
-    :params end_datetime : flight's arrival latitude
-    :params speed : speed of flight
+    * Method to round off time into nearest minutes
+    ***
+        :params total_seconds: total night duration in seconds
 
-    return formatted dict with flight's route information
+    * return roounded off time to nearest minute
     """
-    sunset_info = []
-    sunrise_info = []
+    tm = time.gmtime(total_seconds)
+    minutes = tm.tm_min
+    hours = tm.tm_hour
+    if tm.tm_sec > 30:
+        minutes += 1
+    if tm.tm_hour < 10:
+        hours = "0" + str(tm.tm_hour)
+    if minutes < 10:
+        minutes = "0" + str(minutes)
+    roundoff_time = str(hours) + ":" + str(minutes) + ":00"
+    return roundoff_time
+
+
+def calculate_night_hours(sunset_coordinates_list, sunrise_coordinates_list, travel_info,
+                          start_datetime_obj, end_datetime_obj):
+    """
+    * Method to calculate night duration
+    ***
+        :param: sunset_coordinates_list - list of enroute sunset coordinates
+        :param: sunrise_coordinates_list - list of enroute sunrise coordinates
+        :param: travel_info - list of enroute sunset coordinates with sun's position
+        :param: start_datetime_obj - start_datetime_obj
+        :param: end_datetime_obj - end_datetime_obj
+    * return total night duration
+    """
+    same_day = True if (end_datetime_obj - start_datetime_obj).days == 0 else False
+    night_seconds, day_seconds = 0.0, 0.0
+
+    if travel_info["start"] == "day" and travel_info["end"] == "day" and same_day:
+        if sunset_coordinates_list and sunset_coordinates_list:
+            night_seconds = (sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0
+            ]["datetime_of_sunset"]).seconds
+    elif travel_info["start"] == "day" and travel_info["end"] == "day" and not same_day:
+        if len(sunrise_coordinates_list) == 1 and len(sunset_coordinates_list) == 1:
+            time_diff = (sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"]).seconds
+            night_seconds = (end_datetime_obj - sunset_coordinates_list[0]["datetime_of_sunset"]).seconds if time_diff > 0 else 0
+        elif len(sunrise_coordinates_list) > 1 or len(sunset_coordinates_list) > 1:
+            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"]) + (end_datetime_obj - sunset_coordinates_list[1]["datetime_of_sunset"])).seconds
+    elif travel_info["start"] == "night" and travel_info["end"] == "night":
+        if sunset_coordinates_list and sunrise_coordinates_list:
+            day_seconds = (sunset_coordinates_list[0]["datetime_of_sunset"] - sunrise_coordinates_list[0]["datetime_of_sunrise"]).seconds
+            night_seconds = travel_info["total_duration"] - day_seconds
+        else:
+            night_seconds = (end_datetime_obj - start_datetime_obj).seconds
+
+    elif travel_info["start"] == "day" and travel_info["end"] == "night":
+        if sunrise_coordinates_list and len(sunset_coordinates_list) > 1:
+            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"]) + (end_datetime_obj- sunset_coordinates_list[1]["datetime_of_sunset"])).seconds
+        else:
+            night_seconds = (end_datetime_obj - sunset_coordinates_list[0]["datetime_of_sunset"]).seconds
+    elif travel_info["start"] == "night" and travel_info["end"] == "day":
+        if len(sunrise_coordinates_list) > 1 and sunset_coordinates_list:
+            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - start_datetime_obj) + (sunrise_coordinates_list[1]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"])).seconds
+        else:
+            day_seconds = (end_datetime_obj - sunrise_coordinates_list[0]["datetime_of_sunrise"]).seconds
+            night_seconds = travel_info["total_duration"] - day_seconds
+
+    night_duration = get_roundoff_time(night_seconds)
+    return night_duration
+
+
+def process_positional_data(travel_info, start_datetime_obj, end_datetime_obj):
+    """
+    * Method to process coordinate wise data to find sunrise and sunset coordinates
+    ***
+        :params: travel_info - coordinates list with sun's position at points
+        :params: start_datetime_obj: start_datetime_obj
+        :params: end_datetime_obj: end_datetime_obj
+    * return each coordinates's positional sun position data
+    """
+    sunset_coordinates_list = []
+    sunrise_coordinates_list = []
+    state = travel_info["start"]
+    coordinates = travel_info["coordinates_list"]
+    for point in coordinates:
+        if state == "day" and point:
+            if point["altitude"] < 0:
+                state = "night"
+                point["datetime_of_sunset"] = point["time_at_c"]
+                point["sunrise_on_route"] = False
+                point["sunset_on_route"] = True
+                del point["azimuth"]
+                del point["index"]
+                del point["time_at_c"]
+                sunset_coordinates_list.append(point)
+        if state == "night":
+            if point["altitude"] > 0:
+                state = "day"
+                point["datetime_of_sunrise"] = point["time_at_c"]
+                point["sunrise_on_route"] = True
+                point["sunset_on_route"] = False
+                del point["azimuth"]
+                del point["index"]
+                del point["time_at_c"]
+                sunrise_coordinates_list.append(point)
+        del point["altitude"]
+
+    travel_info["point_sunset_info"] = sunset_coordinates_list
+    travel_info["point_sunrise_info"] = sunrise_coordinates_list
+    travel_info["night_duration"] = calculate_night_hours(sunset_coordinates_list, sunrise_coordinates_list,
+                                                          travel_info, start_datetime_obj, end_datetime_obj)
+    del travel_info["coordinates_list"]
+
+    return travel_info
+
+
+def get_flight_route_data2(start_lat, start_long, start_datetime, end_lat, end_long, end_datetime):
+    """
+    * Method to find sun's position during flight
+    ***
+        :params start_lat : source's latitude
+        :params start_long : source's longitude
+        :params start_datetime : flight's departure time
+        :params end_lat : destination's latitude
+        :params end_long : destination's latitude
+        :params end_datetime : flight's arrival latitude
+
+    * return formatted dict with flight's route information
+    """
+    day = False
+    night = False
+    coordinates_list = []
+
     # start point day/night finder
     start_datetime_obj = datetime.strptime(start_datetime, "%Y%m%dT%H:%M:%SZ")
-    tz_start_time = start_datetime_obj.astimezone(pytz.timezone("UTC"))
-    start_loc_info = LocationInfo(timezone="UTC",
-                                  latitude=start_lat,
-                                  longitude=start_long)
-    sun_data = sun(start_loc_info.observer, date=start_datetime_obj)
-    is_night = tz_start_time < sun_data["sunrise"] or tz_start_time > sun_data["dusk"]
-
-    # end point day/night finder
     end_datetime_obj = datetime.strptime(end_datetime, "%Y%m%dT%H:%M:%SZ")
+    tz_start_time = start_datetime_obj.astimezone(pytz.timezone("UTC"))
     tz_end_time = end_datetime_obj.astimezone(pytz.timezone("UTC"))
-    end_loc_info = LocationInfo(timezone="UTC",
-                                latitude=end_lat,
-                                longitude=end_long)
-    # sun position data
-    end_sun_data = sun(end_loc_info.observer, date=end_datetime_obj)
 
-    # is night
-    end_is_night = tz_end_time < end_sun_data["sunrise"] or tz_end_time > end_sun_data["dusk"]
+    # checking for sun's position at start point to get if flight started in day or night
+    initial_sun_position = getPosition(tz_start_time, start_lat, start_long)
+    if initial_sun_position["altitude"] > 0:
+        day = True
+
+    # checking for sun's position at start point to get if flight ended in day or night
+    final_sun_position = getPosition(tz_end_time, end_lat, end_long)
+    if final_sun_position["altitude"] > 0:
+        night = True
 
     # distance between start and end point
     travel_distance = great_circle(lonlat(start_long, start_lat),
                                    lonlat(end_long, end_lat)).kilometers
 
     total_duration = (end_datetime_obj - start_datetime_obj).seconds
+
+    speed = travel_distance/(total_duration/3600)
     travel_info = {
-        "start": "night" if bool(is_night) else "day",
-        "end": "night" if bool(end_is_night) else "day",
+        "start": "day" if day else "night",
+        "end": "day" if night else "night",
         "travel_distance": travel_distance,
-        "total_duration": time.strftime('%H:%M:%S', time.gmtime((end_datetime_obj - start_datetime_obj).seconds))
+        "total_duration": time.strftime('%H:%M:%S', time.gmtime((end_datetime_obj - start_datetime_obj).seconds)),
+        "speed": speed/1.852
     }
 
     A = (start_lat, start_long)  # Point A (lat, lon)
     B = (end_lat, end_long)  # Point B (lat, lon)
+    speed = travel_distance/(total_duration/3600)
 
     # code for finding geopoints after every 10km
     points_inbetween_coordinates = math.floor(travel_distance / 10)
 
+    enroute_coordinates = []
+
     for point in range(points_inbetween_coordinates+1):
-        info = {}
-        sunset_sunrise_data, c_time, is_sunset, is_sunrise = get_point_sun_data(A, B, speed, start_datetime_obj)
-        start_datetime_obj = c_time
-        A = sunset_sunrise_data
-        if is_sunset:
-            info["enroute_sunset_lat"] = sunset_sunrise_data[0]
-            info["enroute_sunset_long"] = sunset_sunrise_data[1]
-            info["datetime_of_sunset"] = c_time
-            info["sunrise_on_route"] = is_sunrise
-            info["sunset_on_route"] = is_sunset
-            sunset_info.append(info)
 
-        if is_sunrise:
-            info["enroute_sunrise_lat"] = sunset_sunrise_data[0]
-            info["enroute_sunrise_long"] = sunset_sunrise_data[1]
-            info["datetime_of_sunrise"] = c_time
-            info["sunrise_on_route"] = is_sunrise
-            info["sunset_on_route"] = is_sunset
-            sunrise_info.append(info)
+        positional_data, time_at_c, coordinates = get_positional_data(A, B, speed, start_datetime_obj)
+        A = coordinates
+        start_datetime_obj = time_at_c
+        positional_data["index"] = point
+        positional_data["time_at_c"] = time_at_c
+        positional_data["enroute_sunrise_lat"] = coordinates[0]
+        positional_data["enroute_sunrise_long"] = coordinates[1]
 
-        # remaining_distance = great_circle(lonlat(sunset_sunrise_data[1], sunset_sunrise_data[0]),
-        #                                   lonlat(end_long, end_lat)).kilometers
-        # print("remaining_distance --- ", remaining_distance)
+        coordinates_list.append(positional_data)
+
+        remaining_distance = great_circle(lonlat(coordinates[1], coordinates[0]),
+                                          lonlat(end_long, end_lat)).kilometers
         point += 1
-    travel_info["point_sunset_info"] = sunset_info[-1] if sunset_info else sunset_info
-    travel_info["point_sunrise_info"] = sunrise_info[0] if sunrise_info else sunrise_info
-    night_hours = calculate_night_hours(start_datetime, end_datetime, travel_info, total_duration)
-    travel_info["night_hours"] = time.strftime('%H:%M', time.gmtime(night_hours))
-    return travel_info
+        enroute_coordinates.append({"lat": A[0], "lon": A[1]})
+    travel_info["coordinates_list"] = coordinates_list
+    travel_info["total_duration"] = (tz_end_time - tz_start_time).seconds
+    final_results = process_positional_data(travel_info, tz_start_time, tz_end_time)
+    final_results["total_duration"] = time.strftime('%H:%M:%S', time.gmtime((tz_end_time - tz_start_time).seconds))
+    final_results["enroute_coordinates"] = enroute_coordinates
+    return final_results

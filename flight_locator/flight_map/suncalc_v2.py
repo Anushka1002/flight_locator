@@ -166,7 +166,6 @@ def getTimes(date, lat, lng):
         result[time[1]] = fromJulian(Jrise).strftime('%Y-%m-%d %H:%M:%S')
         result[time[2]] = fromJulian(Jset).strftime('%Y-%m-%d %H:%M:%S')
 
-
     return result
 
 
