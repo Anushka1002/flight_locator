@@ -1,12 +1,12 @@
 """
-    flight_locator controller file
+    flight_route_plotter controller file
 """
 import math
 import time
 from datetime import datetime, timedelta
 
 import pytz
-from flight_map.suncalc_v2 import getPosition
+from . suncalc_v2 import getPosition
 from geographiclib.geodesic import Geodesic
 from geopy.distance import lonlat, great_circle
 
@@ -16,7 +16,7 @@ def get_bearing(start_point, end_point):
     * Method to calculate bearing between two coordinates.
 
     ***
-        :param: start_point: start coordinate
+        :param: start_point: start coordinate```
         :param: end_point: end coordinate
 
     * return float: bearing betweem two coordinates"""
@@ -196,15 +196,15 @@ def process_positional_data(travel_info, start_datetime_obj, end_datetime_obj):
     return travel_info
 
 
-def get_flight_route_data2(start_lat, start_long, start_datetime, end_lat, end_long, end_datetime):
+def get_flight_route_data(start_latitide, start_longitude, start_datetime, end_latitude, end_longitude, end_datetime):
     """
     * Method to find sun's position during flight
     ***
-        :params start_lat : source's latitude
-        :params start_long : source's longitude
+        :params start_latitide : source's latitude
+        :params start_longitude : source's longitude
         :params start_datetime : flight's departure time
-        :params end_lat : destination's latitude
-        :params end_long : destination's latitude
+        :params end_latitude : destination's latitude
+        :params end_longitude : destination's latitude
         :params end_datetime : flight's arrival latitude
 
     * return formatted dict with flight's route information
@@ -220,18 +220,18 @@ def get_flight_route_data2(start_lat, start_long, start_datetime, end_lat, end_l
     tz_end_time = end_datetime_obj.astimezone(pytz.timezone("UTC"))
 
     # checking for sun's position at start point to get if flight started in day or night
-    initial_sun_position = getPosition(tz_start_time, start_lat, start_long)
+    initial_sun_position = getPosition(tz_start_time, start_latitide, start_longitude)
     if initial_sun_position["altitude"] > 0:
         day = True
 
     # checking for sun's position at start point to get if flight ended in day or night
-    final_sun_position = getPosition(tz_end_time, end_lat, end_long)
+    final_sun_position = getPosition(tz_end_time, end_latitude, end_longitude)
     if final_sun_position["altitude"] > 0:
         night = True
 
     # distance between start and end point
-    travel_distance = great_circle(lonlat(start_long, start_lat),
-                                   lonlat(end_long, end_lat)).kilometers
+    travel_distance = great_circle(lonlat(start_long, start_latitide),
+                                   lonlat(end_longitude, end_latitude)).kilometers
 
     total_duration = (end_datetime_obj - start_datetime_obj).seconds
 
@@ -244,8 +244,8 @@ def get_flight_route_data2(start_lat, start_long, start_datetime, end_lat, end_l
         "speed": speed/1.852
     }
 
-    A = (start_lat, start_long)  # Point A (lat, lon)
-    B = (end_lat, end_long)  # Point B (lat, lon)
+    A = (start_latitide, start_longitude)  # Point A (lat, lon)
+    B = (end_latitude, end_longitude)  # Point B (lat, lon)
     speed = travel_distance/(total_duration/3600)
 
     # code for finding geopoints after every 10km
@@ -266,7 +266,7 @@ def get_flight_route_data2(start_lat, start_long, start_datetime, end_lat, end_l
         coordinates_list.append(positional_data)
 
         remaining_distance = great_circle(lonlat(coordinates[1], coordinates[0]),
-                                          lonlat(end_long, end_lat)).kilometers
+                                          lonlat(end_longitude, end_latitude)).kilometers
         point += 1
         enroute_coordinates.append({"lat": A[0], "lon": A[1]})
     travel_info["coordinates_list"] = coordinates_list
