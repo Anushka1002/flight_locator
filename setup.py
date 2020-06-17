@@ -13,7 +13,7 @@ setup(
     author='Anushka',
     author_email='verma.anushka10@gmail.com',
     url='https://github.com/Anushka1002/Test.git',
-    license='MIT',
+    license='',
     install_requires=[
         'asgiref==3.2.7',
         'astral==2.2',
