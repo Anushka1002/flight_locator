@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 
 import pytz
-from flight_map.suncalc_v2 import getPosition
+from . suncalc_v2 import getPosition
 from geographiclib.geodesic import Geodesic
 from geopy.distance import lonlat, great_circle
 
@@ -16,7 +16,7 @@ def get_bearing(start_point, end_point):
     * Method to calculate bearing between two coordinates.
 
     ***
-        :param: start_point: start coordinate
+        :param: start_point: start coordinate```
         :param: end_point: end coordinate
 
     * return float: bearing betweem two coordinates"""
