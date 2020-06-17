@@ -230,7 +230,7 @@ def get_flight_route_data(start_latitide, start_longitude, start_datetime, end_l
         night = True
 
     # distance between start and end point
-    travel_distance = great_circle(lonlat(start_long, start_latitide),
+    travel_distance = great_circle(lonlat(start_longitude, start_latitide),
                                    lonlat(end_longitude, end_latitude)).kilometers
 
     total_duration = (end_datetime_obj - start_datetime_obj).seconds
