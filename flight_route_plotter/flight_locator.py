@@ -244,7 +244,7 @@ def get_flight_route_data(start_latitide, start_longitude, start_datetime, end_l
         "speed": speed/1.852
     }
 
-    A = (start_latitide, start_longitude)  # Point A (lat, lon)
+    A = (start_latitide, start_longitude)  # Point A (lat, long)
     B = (end_latitude, end_longitude)  # Point B (lat, lon)
     speed = travel_distance/(total_duration/3600)
 
@@ -268,7 +268,7 @@ def get_flight_route_data(start_latitide, start_longitude, start_datetime, end_l
         remaining_distance = great_circle(lonlat(coordinates[1], coordinates[0]),
                                           lonlat(end_longitude, end_latitude)).kilometers
         point += 1
-        enroute_coordinates.append({"lat": A[0], "lon": A[1]})
+        enroute_coordinates.append({"lat": A[0], "long": A[1]})
     travel_info["coordinates_list"] = coordinates_list
     travel_info["total_duration"] = (tz_end_time - tz_start_time).seconds
     final_results = process_positional_data(travel_info, tz_start_time, tz_end_time)
