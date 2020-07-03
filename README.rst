@@ -11,7 +11,7 @@ All the formulas used like Harvesine formula for calculating distance, bearing f
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install FlightLocator.
 
 ```bash
-pip3 install git+https://sachinmadaan@bitbucket.org/wingman-night-calculator/night_cal_python.git
+pip3 install git+https://github.com/Anushka1002/flight_locator.git
 ```
 
 ## Usage

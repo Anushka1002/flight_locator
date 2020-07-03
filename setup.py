@@ -13,7 +13,7 @@ setup(
     long_description=README,
     author='Anushka',
     author_email='verma.anushka10@gmail.com',
-    url='https://sachinmadaan@bitbucket.org/wingman-night-calculator/night_cal_python.git',
+    url='https://github.com/Anushka1002/flight_locator.git',
     license='',
     install_requires=[
         'asgiref==3.2.7',

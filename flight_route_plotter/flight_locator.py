@@ -127,22 +127,28 @@ def calculate_night_hours(sunset_coordinates_list, sunrise_coordinates_list, tra
             time_diff = (sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"]).seconds
             night_seconds = (end_datetime_obj - sunset_coordinates_list[0]["datetime_of_sunset"]).seconds if time_diff > 0 else 0
         elif len(sunrise_coordinates_list) > 1 or len(sunset_coordinates_list) > 1:
-            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"]) + (end_datetime_obj - sunset_coordinates_list[1]["datetime_of_sunset"])).seconds
+            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"
+                              ] - sunset_coordinates_list[0]["datetime_of_sunset"]) + (
+                    end_datetime_obj - sunset_coordinates_list[1]["datetime_of_sunset"])).seconds
     elif travel_info["start"] == "night" and travel_info["end"] == "night":
         if sunset_coordinates_list and sunrise_coordinates_list:
-            day_seconds = (sunset_coordinates_list[0]["datetime_of_sunset"] - sunrise_coordinates_list[0]["datetime_of_sunrise"]).seconds
+            day_seconds = (sunset_coordinates_list[0]["datetime_of_sunset"
+                           ] - sunrise_coordinates_list[0]["datetime_of_sunrise"]).seconds
             night_seconds = travel_info["total_duration"] - day_seconds
         else:
             night_seconds = (end_datetime_obj - start_datetime_obj).seconds
 
     elif travel_info["start"] == "day" and travel_info["end"] == "night":
         if sunrise_coordinates_list and len(sunset_coordinates_list) > 1:
-            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"]) + (end_datetime_obj- sunset_coordinates_list[1]["datetime_of_sunset"])).seconds
+            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - sunset_coordinates_list[0][
+                "datetime_of_sunset"]) + (end_datetime_obj- sunset_coordinates_list[1]["datetime_of_sunset"])).seconds
         else:
             night_seconds = (end_datetime_obj - sunset_coordinates_list[0]["datetime_of_sunset"]).seconds
     elif travel_info["start"] == "night" and travel_info["end"] == "day":
         if len(sunrise_coordinates_list) > 1 and sunset_coordinates_list:
-            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - start_datetime_obj) + (sunrise_coordinates_list[1]["datetime_of_sunrise"] - sunset_coordinates_list[0]["datetime_of_sunset"])).seconds
+            night_seconds = ((sunrise_coordinates_list[0]["datetime_of_sunrise"] - start_datetime_obj) + (
+                    sunrise_coordinates_list[1]["datetime_of_sunrise"] - sunset_coordinates_list[0
+            ]["datetime_of_sunset"])).seconds
         else:
             day_seconds = (end_datetime_obj - sunrise_coordinates_list[0]["datetime_of_sunrise"]).seconds
             night_seconds = travel_info["total_duration"] - day_seconds

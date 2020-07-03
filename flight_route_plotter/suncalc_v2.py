@@ -1,3 +1,6 @@
+"""
+python version of js suncalc library
+"""
 import math
 from datetime import datetime, timedelta
 import time
