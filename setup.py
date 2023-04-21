@@ -21,6 +21,6 @@ setup(
         'geographiclib==1.50',
         'geopy==1.22.0',
         'pytz==2020.1',
-        'sqlparse==0.3.1',
+        'sqlparse==0.4.4',
     ]
 )
